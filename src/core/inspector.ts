@@ -53,12 +53,20 @@ export async function pageToMarkdown(
       function isElementVisible(el: any): boolean {
         if (opts.includeHidden) return true
         const style = window.getComputedStyle(el)
-        return (
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          style.opacity !== "0" &&
-          el.offsetParent !== null
-        )
+        if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+          return false
+        }
+        // offsetParent is null for fixed/sticky/body elements and in headless mode.
+        // Only use it as a hint combined with zero dimensions to detect truly hidden elements.
+        if (el.offsetParent === null && el.tagName !== "BODY" && el.tagName !== "HTML") {
+          const pos = style.position
+          if (pos !== "fixed" && pos !== "sticky") {
+            // Check if element has dimensions — headless sometimes lacks offsetParent
+            const rect = el.getBoundingClientRect()
+            if (rect.width === 0 && rect.height === 0) return false
+          }
+        }
+        return true
       }
 
       function getAnnotation(el: any): string {
